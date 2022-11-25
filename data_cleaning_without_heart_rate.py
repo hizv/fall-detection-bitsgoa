@@ -51,7 +51,7 @@ def analyse_file(filename):
     gyroscope_data = data[data[4] == "gyro"]
     magnetometer_data = data[data[4] == "mgm"]
     linear_acceleration_data = data[data[4] == "acg"]
-    heart_rate_data = data[data[2] == "hrt"]
+    #heart_rate_data = data[data[2] == "hrt"]
 
     accelerometer_data = accelerometer_data.drop([3, 4], axis=1)
     accelerometer_data = accelerometer_data.rename(columns={0: "AX", 1: "AY", 2: "AZ"})
@@ -90,9 +90,9 @@ def analyse_file(filename):
     )
     linear_acceleration_data = linear_acceleration_data.astype(float)
 
-    heart_rate_data = heart_rate_data.drop([1, 2, 3, 4], axis=1)
-    heart_rate_data = heart_rate_data.rename(columns={0: "HR"})
-    heart_rate_data = heart_rate_data.astype(float)
+    # heart_rate_data = heart_rate_data.drop([1, 2, 3, 4], axis=1)
+    # heart_rate_data = heart_rate_data.rename(columns={0: "HR"})
+    # heart_rate_data = heart_rate_data.astype(float)
 
     # Add filtering code for all
 
@@ -103,7 +103,6 @@ def analyse_file(filename):
         gyroscope_data,
         magnetometer_data,
         linear_acceleration_data,
-        heart_rate_data,
     )
 
     # return all parameters calculated for file
@@ -115,7 +114,6 @@ def Statistical_Analysis(
     gyroscope_data,
     magnetometer_data,
     linear_acceleration_data,
-    heart_rate_data,
 ):
 
     parameters = []
@@ -137,14 +135,14 @@ def Statistical_Analysis(
         parameters.extend(stat_analysis_column(linear_acceleration_data[column]))
 
     # Calculating Parameters for Heart Rate
-    for column in ["HR"]:
-        hr_stats = stat_analysis_column(heart_rate_data[column])
-        if pd.isna(hr_stats)[-1]:
-            hr_stats[-1] = 0
-        if pd.isna(hr_stats)[-2]:
-            hr_stats[-2] = 0
+    # for column in ["HR"]:
+    #     hr_stats = stat_analysis_column(heart_rate_data[column])
+    #     if pd.isna(hr_stats)[-1]:
+    #         hr_stats[-1] = 0
+    #     if pd.isna(hr_stats)[-2]:
+    #         hr_stats[-2] = 0
 
-        parameters.extend(hr_stats)
+    #     parameters.extend(hr_stats)
 
     #print(parameters)
 
@@ -165,8 +163,8 @@ def stat_analysis_column(data):
     return features
 
 
-data_source_path = "Dataset_height_5_5.5/*"
-data_destination_path = "Features_height_5_5ft5in.csv"
+data_source_path = "Dataset_height_more_than_5.5/*"
+data_destination_path = "Features_height_more_than_5ft5in_without_hrt.csv"
 i = 0
 l = 389
 nan_list = []
@@ -187,7 +185,7 @@ with open(data_destination_path, "w", newline='') as out_file:
         for sub_folder in list_of_folders_1:
             list_of_files = glob.glob(sub_folder + "/*.csv")
             for file in list_of_files:
-                print(file)
+                #print(file)
                 #if file != "Dataset/fall/user9/user9_fall2.csv":
                  #   continue
                 parameters = analyse_file(file)
