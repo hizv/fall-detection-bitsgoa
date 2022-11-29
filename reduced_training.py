@@ -1,5 +1,6 @@
 import threading
 import pandas as pd
+import random
 import numpy
 import time
 import csv
@@ -23,17 +24,33 @@ false_rate = 0
 specificity = 0
 # Defining global variables
 
-
+epochs = 1
 algorithms = ["SVM", "KNN", "Logistic Regression", "Naive Bayes", "Random Forest"]
+
+# file = "Features_Entire_Dataset_with_heart_rate.csv"
+file = "Features_Entire_Dataset_without_heart_rate.csv"
+dataset = pd.read_csv(file, header=None)
+
+dataset.dropna(axis=0, inplace=True)
+
+users_to_drop = random.sample(range(6, 42), 0)
+
+print(users_to_drop)
+
+for user in users_to_drop:
+    # dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
+    dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
+
+dataset.drop(105, axis=1, inplace=True)
+
+X = dataset.iloc[:, :-1].values
+y = dataset.iloc[:, -1].values
+users = len(y) // 24
+
 
 # Defining data loading function for single thread execution
 def _LoadData_SingleThread():
     # data_time_s = time.time()
-    dataset = pd.read_csv("Features.csv", header=None)
-    dataset.dropna(axis=0, inplace=True)
-    X = dataset.iloc[:, :-1].values
-    y = dataset.iloc[:, -1].values
-
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=0
     )
@@ -41,6 +58,7 @@ def _LoadData_SingleThread():
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
+    #
     # data_time_e = time.time()
     # data_time = data_time_e - data_time_s
     # print("Data Loading time: " + str(data_time))
@@ -83,18 +101,18 @@ def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName):
 
 
 # Defining ML testing function for single thread execution
-def _TestModel_SingleThread(classifier):
+def _TestModel_SingleThread(classifier, array):
     testing_time_s = time.time()
     y_pred = classifier.predict(X_test)
     y_pred_proba = classifier.predict_proba(X_test)[:, 1]
-    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
-    auc = roc_auc_score(y_test, y_pred_proba)
+    # fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+    # auc = roc_auc_score(y_test, y_pred_proba)
     cm = confusion_matrix(y_test, y_pred)
     tp = cm[0][0]
     fp = cm[0][1]
     fn = cm[1][0]
     tn = cm[1][1]
-    sensitivity = tp / (tp + tn)
+    sensitivity = tp / (tp + fn)
     false_rate = fn / (tp + fn)
     specificity = tn / (tn + fp)
     accuracy = accuracy_score(y_test, y_pred)
@@ -106,67 +124,24 @@ def _TestModel_SingleThread(classifier):
     # testing_time_e = time.time()
     # testing_time = testing_time_e - testing_time_s
     # print("Testing time: " + str(testing_time))
-    return fpr, tpr, auc
+    array.append(accuracy)
+    array.append(sensitivity)
+    array.append(false_rate)
+    array.append(specificity)
 
 
-X_train, X_test, y_train, y_test = _LoadData_SingleThread()
-fpr = []
-tpr = []
-auc = []
-# SVM
-i = 0
-print("SVM")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "SVM")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# KNN
-print("KNN")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "KNN")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# LR
-print("LR")
-classifier = _TrainModel_SingleThread(
-    X_train, X_test, y_train, y_test, "Logistic Regression"
-)
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# NB
-print("NB")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "Naive Bayes")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# RF
-print("RF")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "Random Forest")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-
-
-for x in range(0, i + 1):
-    plt.plot(
-        fpr[x],
-        tpr[x],
-        label=algorithms[x] + " , AUC Score: " + str(round(auc[x], 3)),
-        linestyle=lines[x],
-    )
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.legend()
-plt.grid()
-plt.title("ROC Curve")
-plt.savefig("graph.png", dpi=500)
+f = open(f"{file.split('.')[0]}_using {users} users.csv", "w", newline="")
+writer = csv.writer(f)
+writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "False Rate", "Specificity"])
+for algo in algorithms:
+    print(algo)
+    for u in tqdm(range(epochs)):
+        # loadData
+        array = []
+        X_train, X_test, y_train, y_test = _LoadData_SingleThread()
+        # trainModel
+        classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, algo)
+        # testModel
+        _TestModel_SingleThread(classifier, array)
+        writer.writerow([algo] + array)
+f.close()
