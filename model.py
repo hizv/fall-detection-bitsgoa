@@ -17,39 +17,72 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import classification_report, roc_curve, roc_auc_score
 
-lines = ["solid", "dotted", (0, (5, 5)), "dashdot", (0, (5, 1))]
 sensitivity = 0
 false_rate = 0
 specificity = 0
 # Defining global variables
-
-
+epochs = 1
 algorithms = ["SVM", "KNN", "Logistic Regression", "Naive Bayes", "Random Forest"]
 
 # Defining data loading function for single thread execution
-def _LoadData_SingleThread():
-    # data_time_s = time.time()
-    dataset = pd.read_csv("Features.csv", header=None)
-    dataset.dropna(axis=0, inplace=True)
-    X = dataset.iloc[:, :-1].values
-    y = dataset.iloc[:, -1].values
 
-    X_train, X_test, y_train, y_test = train_test_split(
+file1 = "Features_Entire_Dataset_with_heart_rate.csv"
+
+
+def _LoadData_SingleThread(array):
+    data_time_s = time.time()
+    dataset = pd.read_csv(file1, header=None)
+    dataset.dropna(axis=0, inplace=True)
+    entries = dataset.iloc[:, -1].values
+    activity = dataset.iloc[:, -2].values
+    print("Activity Length")
+    print(len(activity))
+
+    activity_index = []
+    test_activity = []
+
+    for i in range(len(entries)):
+        activity_index.append(i)
+    activity_index = pd.Series(activity_index)
+    dataset.insert(len(dataset.columns), len(dataset.columns), activity_index.values)
+
+    X = dataset.iloc[:, :-3].values
+    X = pd.DataFrame(X)
+    X.insert(len(X.columns), len(X.columns), dataset.iloc[:, -1].values)
+
+    # X = dataset;
+    y = dataset.iloc[:, -2].values
+
+    X_train_a, X_test_a, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=0
     )
+
+    X_train_a = pd.DataFrame(X_train_a)
+    X_test_a = pd.DataFrame(X_test_a)
+    test_activity_index = X_test_a.iloc[:, -1].values
+    for index in test_activity_index:
+        test_activity.append(activity[int(index)])
+    # print(test_activity)
+    # print(y_test)
+
+    X_train = X_train_a.iloc[:, :-1].values
+    X_test = X_test_a.iloc[:, :-1].values
 
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
-    # data_time_e = time.time()
-    # data_time = data_time_e - data_time_s
-    # print("Data Loading time: " + str(data_time))
 
-    return X_train, X_test, y_train, y_test
+    data_time_e = time.time()
+    data_time = data_time_e - data_time_s
+    print("Data Loading time: " + str(data_time))
+    # array.append(data_time)
+    print("Test Activity Length")
+    print(len(test_activity))
+    return X_train, X_test, y_train, y_test, test_activity
 
 
 # Defining ML training function for single thread execution
-def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName):
+def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName, array):
     training_time_s = time.time()
     if ModelName == "SVM":
         classifier = SVC(C=10, kernel="rbf", random_state=0, probability=True)
@@ -57,7 +90,7 @@ def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName):
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
 
     elif ModelName == "KNN":
-        classifier = KNeighborsClassifier(n_neighbors=7)
+        classifier = KNeighborsClassifier(n_neighbors=9)
         classifier.fit(X_train, y_train)
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
 
@@ -75,20 +108,17 @@ def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName):
         classifier = RandomForestClassifier(n_estimators=170)
         classifier.fit(X_train, y_train)
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
-    # training_time_e = time.time()
-    # training_time = training_time_e - training_time_s
-    # print("Training time: " + str(training_time))
-
+    training_time_e = time.time()
+    training_time = training_time_e - training_time_s
+    print("Training time: " + str(training_time))
+    # array.append(training_time)
     return classifier
 
 
 # Defining ML testing function for single thread execution
-def _TestModel_SingleThread(classifier):
+def _TestModel_SingleThread(classifier, array, test_activity):
     testing_time_s = time.time()
     y_pred = classifier.predict(X_test)
-    y_pred_proba = classifier.predict_proba(X_test)[:, 1]
-    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
-    auc = roc_auc_score(y_test, y_pred_proba)
     cm = confusion_matrix(y_test, y_pred)
     tp = cm[0][0]
     fp = cm[0][1]
@@ -98,75 +128,38 @@ def _TestModel_SingleThread(classifier):
     false_rate = fn / (tp + fn)
     specificity = tn / (tn + fp)
     accuracy = accuracy_score(y_test, y_pred)
-    print(f"Sensitivity: {sensitivity}")
-    print(f"False rate: {false_rate}")
-    print(f"Specificity: {specificity}")
-    # print(cm)
-    print(f"Accuracy: {accuracy}")
-    # testing_time_e = time.time()
-    # testing_time = testing_time_e - testing_time_s
-    # print("Testing time: " + str(testing_time))
-    return fpr, tpr, auc
+    testing_time_e = time.time()
+    testing_time = testing_time_e - testing_time_s
+    print("Testing time: " + str(testing_time))
+    print("Acc " + str(accuracy))
+    print("Sens " + str(sensitivity))
+    print("fals " + str(false_rate))
+    print("Specs " + str(specificity))
+    # array.append(testing_time)
+    array.append(accuracy)
+    array.append(sensitivity)
+    array.append(false_rate)
+    array.append(specificity)
+
+    for i in range(len(y_pred)):
+        if y_test[i] != y_pred[i]:
+            array.append(test_activity[i])
 
 
-X_train, X_test, y_train, y_test = _LoadData_SingleThread()
-fpr = []
-tpr = []
-auc = []
-# SVM
-i = 0
-print("SVM")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "SVM")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# KNN
-print("KNN")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "KNN")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# LR
-print("LR")
-classifier = _TrainModel_SingleThread(
-    X_train, X_test, y_train, y_test, "Logistic Regression"
-)
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# NB
-print("NB")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "Naive Bayes")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-i = i + 1
-# RF
-print("RF")
-classifier = _TrainModel_SingleThread(X_train, X_test, y_train, y_test, "Random Forest")
-f, t, a = _TestModel_SingleThread(classifier)
-fpr.append(f)
-tpr.append(t)
-auc.append(a)
-
-
-for x in range(0, i + 1):
-    plt.plot(
-        fpr[x],
-        tpr[x],
-        label=algorithms[x] + " , AUC Score: " + str(round(auc[x], 3)),
-        linestyle=lines[x],
-    )
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.legend()
-plt.grid()
-plt.title("ROC Curve")
-plt.savefig("graph.png", dpi=500)
+f = open((f"{file1.split('.')[0]}_self_.csv"), "w", newline="")
+writer = csv.writer(f)
+writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "False Rate", "Specificity"])
+for algo in algorithms:
+    print(algo)
+    for u in tqdm(range(epochs)):
+        # loadData
+        array = []
+        X_train, X_test, y_train, y_test, test_activity = _LoadData_SingleThread(array)
+        # trainModel
+        classifier = _TrainModel_SingleThread(
+            X_train, X_test, y_train, y_test, algo, array
+        )
+        # testModel
+        _TestModel_SingleThread(classifier, array, test_activity)
+        writer.writerow([algo] + array)
+f.close()

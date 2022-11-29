@@ -24,14 +24,27 @@ specificity = 0
 epochs = 1
 algorithms = ["SVM", "KNN", "Logistic Regression", "Naive Bayes", "Random Forest"]
 
-file1 = "Features_Age_30to40.csv"  # Training
-file2 = "Features_Age_40to50.csv"  # Testing
+file1 = "Features_Age_under30.csv"  # Training
+file2 = "Features_Age_30to40.csv"  # Testing
 
 # Defining data loading function for single thread execution
 def _LoadData_SingleThread(array):
     # data_time_s = time.time()
     dataset = pd.read_csv(file1, header=None)
     dataset.dropna(axis=0, inplace=True)
+
+    entries = dataset.iloc[:, -1].values
+    activity = dataset.iloc[:, -2].values
+    print("Activity Length")
+    print(len(activity))
+
+    activity_index = []
+    test_activity = []
+
+    for i in range(len(entries)):
+        activity_index.append(i)
+    activity_index = pd.Series(activity_index)
+
     X_train = dataset.iloc[:, :-2].values
     y_train = dataset.iloc[:, -1].values
 
@@ -102,7 +115,7 @@ def _TestModel_SingleThread(classifier, array, test_activity):
     fp = cm[0][1]
     fn = cm[1][0]
     tn = cm[1][1]
-    sensitivity = tp / (tp + tn)
+    sensitivity = tp / (tp + fn)
     false_rate = fn / (tp + fn)
     specificity = tn / (tn + fp)
     accuracy = accuracy_score(y_test, y_pred)

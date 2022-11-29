@@ -18,7 +18,6 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import classification_report, roc_curve, roc_auc_score
 
-lines = ["solid", "dotted", (0, (5, 5)), "dashdot", (0, (5, 1))]
 sensitivity = 0
 false_rate = 0
 specificity = 0
@@ -27,23 +26,26 @@ specificity = 0
 epochs = 1
 algorithms = ["SVM", "KNN", "Logistic Regression", "Naive Bayes", "Random Forest"]
 
-# file = "Features_Entire_Dataset_with_heart_rate.csv"
-file = "Features_Entire_Dataset_without_heart_rate.csv"
+file = "Features_Entire_Dataset_with_heart_rate.csv"
+# file = "Features_Entire_Dataset_without_heart_rate.csv"
 dataset = pd.read_csv(file, header=None)
 
 dataset.dropna(axis=0, inplace=True)
 
-users_to_drop = random.sample(range(6, 42), 0)
+# users_to_drop = random.sample(range(6, 42), 0)
 
-print(users_to_drop)
+# print(users_to_drop)
 
-for user in users_to_drop:
-    # dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
-    dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
+# for user in users_to_drop:
+#   dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
+# dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
 
-dataset.drop(105, axis=1, inplace=True)
+
+dataset.drop(112, axis=1, inplace=True)
 
 X = dataset.iloc[:, :-1].values
+
+X = pd.DataFrame(X)
 y = dataset.iloc[:, -1].values
 users = len(y) // 24
 
@@ -51,6 +53,8 @@ users = len(y) // 24
 # Defining data loading function for single thread execution
 def _LoadData_SingleThread():
     # data_time_s = time.time()
+    #
+    print(X, y)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=0
     )
@@ -75,7 +79,7 @@ def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName):
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
 
     elif ModelName == "KNN":
-        classifier = KNeighborsClassifier(n_neighbors=7)
+        classifier = KNeighborsClassifier(n_neighbors=9)
         classifier.fit(X_train, y_train)
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
 
