@@ -32,21 +32,35 @@ dataset = pd.read_csv(file, header=None)
 
 dataset.dropna(axis=0, inplace=True)
 
-# users_to_drop = random.sample(range(6, 42), 0)
+users_to_drop = random.sample(range(6, 42), 11)
 
-# print(users_to_drop)
+print(users_to_drop)
 
-# for user in users_to_drop:
-#   dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
-# dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
+for user in users_to_drop:
+    dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
+    # dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
 
 
-dataset.drop(112, axis=1, inplace=True)
+entries = dataset.iloc[:, -1].values
+activity = dataset.iloc[:, -2].values
+print("Activity Length")
+print(len(activity))
 
-X = dataset.iloc[:, :-1].values
+activity_index = []
+test_activity = []
 
+for i in range(len(entries)):
+    activity_index.append(i)
+activity_index = pd.Series(activity_index)
+dataset.insert(len(dataset.columns), len(dataset.columns), activity_index.values)
+
+X = dataset.iloc[:, :-3].values
 X = pd.DataFrame(X)
-y = dataset.iloc[:, -1].values
+X.insert(len(X.columns), len(X.columns), dataset.iloc[:, -1].values)
+
+# X = dataset;
+y = dataset.iloc[:, -2].values
+
 users = len(y) // 24
 
 
@@ -58,6 +72,17 @@ def _LoadData_SingleThread():
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=0
     )
+
+    X_train_a = pd.DataFrame(X_train_a)
+    X_test_a = pd.DataFrame(X_test_a)
+    test_activity_index = X_test_a.iloc[:, -1].values
+    for index in test_activity_index:
+        test_activity.append(activity[int(index)])
+    # print(test_activity)
+    # print(y_test)
+
+    X_train = X_train_a.iloc[:, :-1].values
+    X_test = X_test_a.iloc[:, :-1].values
 
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
@@ -133,8 +158,12 @@ def _TestModel_SingleThread(classifier, array):
     array.append(false_rate)
     array.append(specificity)
 
+    for i in range(len(y_pred)):
+        if y_test[i] != y_pred[i]:
+            array.append(test_activity[i])
 
-f = open(f"{file.split('.')[0]}_using {users} users.csv", "w", newline="")
+
+f = open(f"Results_{file.split('.')[0]}_using {users} users.csv", "w", newline="")
 writer = csv.writer(f)
 writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "False Rate", "Specificity"])
 for algo in algorithms:

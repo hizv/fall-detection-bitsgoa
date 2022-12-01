@@ -1,4 +1,5 @@
 import threading
+import random
 import pandas as pd
 import numpy
 import time
@@ -16,7 +17,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import classification_report, roc_curve, roc_auc_score
-from collections import defaultdict
 
 sensitivity = 0
 false_rate = 0
@@ -27,33 +27,48 @@ algorithms = ["SVM", "KNN", "Logistic Regression", "Naive Bayes", "Random Forest
 
 # Defining data loading function for single thread execution
 
+# file1 = "Features_Entire_Dataset_with_heart_rate.csv"
 file1 = "Features_Entire_Dataset_without_heart_rate.csv"
-file_counts = defaultdict(int)
+
+data_time_s = time.time()
+dataset = pd.read_csv(file1, header=None)
+dataset.dropna(axis=0, inplace=True)
+
+
+users_to_drop = random.sample(range(6, 42), 31)
+
+print(users_to_drop)
+
+for user in users_to_drop:
+    # dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
+    dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
+
+
+entries = dataset.iloc[:, -1].values
+activity = dataset.iloc[:, -2].values
+print("Activity Length")
+print(len(activity))
+
+
+activity_index = []
+test_activity = []
+
+for i in range(len(entries)):
+    activity_index.append(i)
+activity_index = pd.Series(activity_index)
+
+X = dataset.iloc[:, :-2].values
+X = pd.DataFrame(X)
+
+
+# X = dataset;
+y = dataset.iloc[:, -1].values
+
+print(X, y)
+users = len(y) // 24
 
 
 def _LoadData_SingleThread(array):
-    data_time_s = time.time()
-    dataset = pd.read_csv(file1, header=None)
-    dataset.dropna(axis=0, inplace=True)
-    entries = dataset.iloc[:, -1].values
-    activity = dataset.iloc[:, -2].values
-    print("Activity Length")
-    print(len(activity))
-
-    activity_index = []
-    test_activity = []
-
-    for i in range(len(entries)):
-        activity_index.append(i)
-    activity_index = pd.Series(activity_index)
-    dataset.insert(len(dataset.columns), len(dataset.columns), activity_index.values)
-
-    X = dataset.iloc[:, :-3].values
-    X = pd.DataFrame(X)
-    X.insert(len(X.columns), len(X.columns), dataset.iloc[:, -1].values)
-
-    # X = dataset;
-    y = dataset.iloc[:, -2].values
 
     X_train_a, X_test_a, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=0
@@ -97,7 +112,7 @@ def _TrainModel_SingleThread(X_train, X_test, y_train, y_test, ModelName, array)
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
 
     elif ModelName == "Logistic Regression":
-        classifier = LogisticRegression()
+        classifier = LogisticRegression(max_iter=4000)
         classifier.fit(X_train, y_train)
         scores = cross_val_score(classifier, X_train, y_train, cv=10)
 
@@ -145,11 +160,10 @@ def _TestModel_SingleThread(classifier, array, test_activity):
 
     for i in range(len(y_pred)):
         if y_test[i] != y_pred[i]:
-            # array.append(test_activity[i])
-            file_counts[test_activity[i]] += 1
+            array.append(test_activity[i])
 
 
-f = open((f"{file1.split('.')[0]}_self_.csv"), "w", newline="")
+f = open(f"Reduced_{file1.split('.')[0]}_using {users} users.csv", "w", newline="")
 writer = csv.writer(f)
 writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "False Rate", "Specificity"])
 for algo in algorithms:
@@ -165,9 +179,4 @@ for algo in algorithms:
         # testModel
         _TestModel_SingleThread(classifier, array, test_activity)
         writer.writerow([algo] + array)
-
-fails = []
-for fil, c in file_counts.items():
-    if c >= 3:
-        writer.writerow([fil])
 f.close()
