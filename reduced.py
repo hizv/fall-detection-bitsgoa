@@ -17,6 +17,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.metrics import classification_report, roc_curve, roc_auc_score
+from collections import defaultdict
 
 sensitivity = 0
 false_rate = 0
@@ -28,20 +29,22 @@ algorithms = ["SVM", "KNN", "Logistic Regression", "Naive Bayes", "Random Forest
 # Defining data loading function for single thread execution
 
 # file1 = "Features_Entire_Dataset_with_heart_rate.csv"
-file1 = "Features_Entire_Dataset_without_heart_rate.csv"
+file1 = "Features_Entire_Dataset_with_heart_rate.csv"
+file_counts = defaultdict(int)
+
 
 data_time_s = time.time()
 dataset = pd.read_csv(file1, header=None)
 dataset.dropna(axis=0, inplace=True)
 
 
-users_to_drop = random.sample(range(6, 42), 31)
+# users_to_drop = random.sample(range(6, 42), 11)
 
-print(users_to_drop)
+# print(users_to_drop)
 
-for user in users_to_drop:
-    # dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
-    dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
+# for user in users_to_drop:
+#     # dataset = dataset[~dataset[112].str.contains(f"user{user}_")]
+#     dataset = dataset[~dataset[105].str.contains(f"user{user}_")]
 
 
 entries = dataset.iloc[:, -1].values
@@ -66,6 +69,8 @@ y = dataset.iloc[:, -1].values
 
 print(X, y)
 users = len(y) // 24
+
+dataset.to_csv(f"{file1} with {users} users.csv", index=False, header=False)
 
 
 def _LoadData_SingleThread(array):
@@ -160,10 +165,12 @@ def _TestModel_SingleThread(classifier, array, test_activity):
 
     for i in range(len(y_pred)):
         if y_test[i] != y_pred[i]:
-            array.append(test_activity[i])
+            file_counts[test_activity[i]] += 1
 
 
-f = open(f"Reduced_{file1.split('.')[0]}_using {users} users.csv", "w", newline="")
+f = open(
+    f"Reduced_{file1.split('.')[0]}_using {users} users_latest.csv", "w", newline=""
+)
 writer = csv.writer(f)
 writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "False Rate", "Specificity"])
 for algo in algorithms:
@@ -179,4 +186,9 @@ for algo in algorithms:
         # testModel
         _TestModel_SingleThread(classifier, array, test_activity)
         writer.writerow([algo] + array)
+
+fails = []
+for fil, c in file_counts.items():
+    if c >= 3:
+        writer.writerow([fil])
 f.close()
