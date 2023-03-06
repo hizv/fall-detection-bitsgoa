@@ -153,7 +153,7 @@ def _TestModel_SingleThread(classifier, array, test_activity):
 
 f = open((f"{file1.split('.')[0]}_ensemble_results.csv"), "w", newline="")
 writer = csv.writer(f)
-writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "False Rate", "Specificity"])
+writer.writerow(["Algorithm", "Accuracy", "Sensitivity", "Specificity"])
 for algo in algorithms:
     print(algo)
     for u in tqdm(range(epochs)):
